@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:slice"
 
 ITEM_TYPE :: enum {
 	IRON_SWORD,
@@ -47,6 +48,27 @@ Clue :: struct {
 	satisfied: bool,
 }
 
+compare_clues :: proc(a, b: Clue) -> slice.Ordering{
+	max_a := max(a.size.x, a.size.y);
+	max_b := max(b.size.x, b.size.y);
+
+	switch delta := max_a - max_b; {
+		case delta < 0: return slice.Ordering.Greater
+		case delta > 0: return slice.Ordering.Less
+	}
+
+	min_a := min(a.size.x, a.size.y);
+	min_b := min(b.size.x, b.size.y);
+
+	switch delta := min_a - min_b; {
+		case delta < 0: return slice.Ordering.Greater
+		case delta > 0: return slice.Ordering.Less
+	}
+
+	return slice.Ordering.Equal;
+
+}
+
 Negative_Clue :: struct {
 	item: [3][3]CLUE_TYPE,
 	size: [2]int,
@@ -81,7 +103,7 @@ destroy_board_state :: proc(board: ^Board_State) {
 	delete(board.negative_clues);
 }
 
-apply_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
+apply_fixed_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 	for i in 0..<3 {
 		for j in 0..<3 {
 			// init_cell_state(&board.cells[j][i]);
@@ -146,6 +168,81 @@ apply_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 	}
 }
 
+apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
+	// board.clues = make([dynamic]Clue);
+	offsets := make([dynamic][2]int);
+	defer delete(offsets);
+
+	for x in 0..<3 - clue.size.x + 1 {
+		for y in 0..<3 - clue.size.y + 1 {
+			append(&offsets, [2]int{x, y});
+		}
+	}
+
+	satisfiable := make([]bool, len(offsets));
+	for &a in satisfiable {
+		a = true;
+	}
+	// satisfiable = !satisfiable;
+
+	// fmt.printfln("%#v", clue);
+
+
+
+	for offset, index in offsets {
+		for i in 0..<clue.size.x {
+			for j in 0..<clue.size.y{
+				current_clue := clue.item[j][i];
+				current_cell := cells[j + offset.y][i + offset.x];
+
+
+				#partial switch current_clue {
+					case .EMPTY: fallthrough
+					case .NONE: ;
+
+					case .IRON_SWORD ..= .DIAMOND_CHESTPLATE: 					
+						satisfiable[index] &&= current_cell.available[cast(ITEM_TYPE) current_clue];
+
+
+				}
+			}
+		}
+	}
+
+	satisfy_count := 0;
+	correct_offset := [2]int{-1, -1};
+	for satisfication, index in satisfiable {
+		if satisfication {
+			satisfy_count += 1;
+			correct_offset = offsets[index] ;
+		}
+	}
+
+	if satisfy_count == 1 {
+		fixed_clue := Clue{
+			item = {
+				{.NONE, .NONE, .NONE},
+				{.NONE, .NONE, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {3, 3},
+		}
+
+		for i, ii in correct_offset.x..<3 {
+			for j, jj in correct_offset.y..<3 {
+				fixed_clue.item[j][i] = clue.item[jj][ii];
+			}
+		}
+
+		// fmt.printfln("%#v", fixed_clue);
+		apply_fixed_clue(cells, fixed_clue);
+	}
+	
+	// fmt.println(offsets, satisfiable);
+
+
+}
+
 check_final_item :: proc(cells: ^[3][3]Cell_State, index: [2]int) {
 	// check if only one item left
 	possible_items: int;
@@ -173,14 +270,22 @@ check_final_item :: proc(cells: ^[3][3]Cell_State, index: [2]int) {
 	}
 }
 
+sort_clues :: proc(board: ^Board_State) {
+	slice.sort_by_cmp(board.clues[:], compare_clues);
+
+
+}
+
 print_solution :: proc(board: Board_State) {
 	for i in 0..<3 {
 		for j in 0..<3 {
+			fmt.print("[ ");
 			for type, type_name in board.cells[i][j].available {
 				if type {
 					fmt.print(type_name, " ");
 				}
 			}
+			fmt.print("] ");
 		}
 		fmt.println();
 	}
@@ -202,7 +307,7 @@ problem1 :: proc() {
 		}
 	)
 
-	apply_clue(&board.cells, board.clues[0]);
+	apply_fixed_clue(&board.cells, board.clues[0]);
 
 	// fmt.printfln("%#v", board.cells);
 	print_solution(board);
@@ -257,7 +362,7 @@ problem2 :: proc() {
 	)
 
 	for clue in board.clues{
-		apply_clue(&board.cells, clue);
+		apply_fixed_clue(&board.cells, clue);
 	}
 
 	// fmt.printfln("%#v", board.cells);
@@ -340,13 +445,139 @@ problem3 :: proc() {
 	)
 
 	for clue in board.clues{
-		apply_clue(&board.cells, clue);
+		apply_fixed_clue(&board.cells, clue);
 	}
 
 	// fmt.printfln("%#v", board.cells);
 	print_solution(board);
 }
 
+problem4 :: proc() {
+	board: Board_State;
+	init_board_state(&board);
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.EMPTY, .EMPTY, .NONE},
+				{.DIAMOND_CHESTPLATE, .NONE, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.EMPTY, .EMPTY, .EMPTY},
+				{.NONE, .DIAMOND_SWORD, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {3, 2},
+		}
+	)
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.EMPTY, .DIAMOND_PICKAXE, .NONE},
+				{.NONE, .EMPTY, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.EMPTY, .NONE, .NONE},
+				{.EMPTY, .GOLD_CHESTPLATE, .NONE},
+				{.EMPTY, .NONE, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .EMPTY, .NONE},
+				{.EMPTY, .GOLD_SWORD, .EMPTY},
+				{.NONE, .EMPTY, .NONE},
+			},
+			size = {3, 3},
+		}
+	)
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .EMPTY, .NONE},
+				{.GOLD_PICKAXE, .EMPTY, .NONE},
+				{.NONE, .EMPTY, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.IRON_CHESTPLATE, .NONE, .NONE},
+				{.EMPTY, .EMPTY, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .IRON_SWORD, .NONE},
+				{.EMPTY, .EMPTY, .EMPTY},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {3, 2},
+		}
+	)
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .EMPTY, .NONE},
+				{.EMPTY, .IRON_PICKAXE, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+
+	sort_clues(&board);
+
+
+	index := 0;
+	for clue in board.clues{
+		if clue.size.x == 3 && clue.size.y == 3 {
+			apply_fixed_clue(&board.cells, clue);
+			index += 1;
+		}
+	}
+
+	remove_range(&board.clues, 0, index);
+
+	index = 0;
+	for clue in board.clues{
+		apply_offset_clue(&board.cells, clue);
+		index += 1;
+	}
+
+	print_solution(board);
+}
+
+// odin run .
 main :: proc() {
-	problem3()
+	problem4();
 }
