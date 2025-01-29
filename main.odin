@@ -203,6 +203,36 @@ apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 					case .IRON_SWORD ..= .DIAMOND_CHESTPLATE: 					
 						satisfiable[index] &&= current_cell.available[cast(ITEM_TYPE) current_clue];
 
+					case .SWORD:
+						satisfiable[index] &&= current_cell.available[.IRON_SWORD] || \
+											 current_cell.available[.GOLD_SWORD] || \
+											 current_cell.available[.DIAMOND_SWORD]
+ 
+					case .PICKAXE:
+						satisfiable[index] &&= current_cell.available[.IRON_PICKAXE] || \
+											 current_cell.available[.GOLD_PICKAXE] || \
+											 current_cell.available[.DIAMOND_PICKAXE]
+					case .CHESTPLATE:
+						satisfiable[index] &&= current_cell.available[.IRON_CHESTPLATE] || \
+											 current_cell.available[.GOLD_CHESTPLATE] || \
+											 current_cell.available[.DIAMOND_CHESTPLATE]
+					
+					case .IRON:
+						satisfiable[index] &&= current_cell.available[.IRON_SWORD] || \
+											 current_cell.available[.IRON_PICKAXE] || \
+											 current_cell.available[.IRON_CHESTPLATE]
+					
+					case .GOLD:
+						satisfiable[index] &&= current_cell.available[.GOLD_SWORD] || \
+											 current_cell.available[.GOLD_PICKAXE] || \
+											 current_cell.available[.GOLD_CHESTPLATE]
+					
+					case .DIAMOND:
+						satisfiable[index] &&= current_cell.available[.DIAMOND_SWORD] || \
+											 current_cell.available[.DIAMOND_PICKAXE] || \
+											 current_cell.available[.DIAMOND_CHESTPLATE]
+					
+
 
 				}
 			}
@@ -215,10 +245,19 @@ apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 		if satisfication {
 			satisfy_count += 1;
 			correct_offset = offsets[index] ;
+		} else {
+			fmt.println("Unsatisfiable clue: ")
+			fmt.println(offsets, satisfiable);
+			fmt.printfln("%#v", clue);
+
 		}
 	}
 
 	if satisfy_count == 1 {
+		// fmt.printfln("%#v", clue);
+		// fmt.println(correct_offset);
+
+
 		fixed_clue := Clue{
 			item = {
 				{.NONE, .NONE, .NONE},
@@ -236,6 +275,9 @@ apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 
 		// fmt.printfln("%#v", fixed_clue);
 		apply_fixed_clue(cells, fixed_clue);
+	} else {
+		// fmt.printfln("%#v", clue);
+		// fmt.println(offsets, satisfiable);
 	}
 	
 	// fmt.println(offsets, satisfiable);
@@ -274,6 +316,45 @@ sort_clues :: proc(board: ^Board_State) {
 	slice.sort_by_cmp(board.clues[:], compare_clues);
 
 
+}
+
+solve_board :: proc(board: ^Board_State) {
+	sort_clues(board);
+
+	for i in 0..<100{
+		if is_solved(board^) do break;
+
+		index := 0;
+		for clue in board.clues{
+			if clue.size.x == 3 && clue.size.y == 3 {
+				apply_fixed_clue(&board.cells, clue);
+				index += 1;
+			}
+		}
+		
+		remove_range(&board.clues, 0, index);
+		
+		index = 0;
+		for clue in board.clues{
+			apply_offset_clue(&board.cells, clue);
+			index += 1;
+		}
+	}
+}
+
+is_solved :: proc(board: Board_State) -> bool{
+	for row in board.cells {
+		for cell in row {
+			count := 0;
+			for state in cell.available {
+				if state do count += 1;
+			}
+
+			if count != 1 do return false;
+		}
+	}
+
+	return true;
 }
 
 print_solution :: proc(board: Board_State) {
@@ -577,7 +658,189 @@ problem4 :: proc() {
 	print_solution(board);
 }
 
+problem7 :: proc() {
+	board: Board_State;
+	init_board_state(&board);
+
+	// append(&board.clues, 
+	// 	Clue{
+	// 		item = {
+	// 			{.NONE, .NONE, .NONE},
+	// 			{.NONE, .NONE, .NONE},
+	// 			{.NONE, .NONE, .NONE},
+	// 		},
+	// 		size = {3, 3},
+	// 	}
+	// )
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.DIAMOND, .NONE, .NONE},
+				{.NONE, .DIAMOND, .NONE},
+				{.NONE, .NONE, .DIAMOND},
+			},
+			size = {3, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .NONE, .PICKAXE},
+				{.NONE, .PICKAXE, .NONE},
+				{.PICKAXE, .NONE, .NONE},
+			},
+			size = {3, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.IRON, .NONE, .NONE},
+				{.IRON, .IRON, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .SWORD, .NONE},
+				{.SWORD, .SWORD, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.GOLD, .GOLD, .NONE},
+				{.NONE, .GOLD, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.CHESTPLATE, .CHESTPLATE, .NONE},
+				{.CHESTPLATE, .NONE, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {3, 3},
+		}
+	)
+
+	solve_board(&board);
+
+	print_solution(board);
+}
+
+problem20 :: proc() {
+	board: Board_State;
+	init_board_state(&board);
+
+	// append(&board.clues, 
+	// 	Clue{
+	// 		item = {
+	// 			{.NONE, .NONE, .NONE},
+	// 			{.NONE, .NONE, .NONE},
+	// 			{.NONE, .NONE, .NONE},
+	// 		},
+	// 		size = {3, 3},
+	// 	}
+	// )
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .DIAMOND_PICKAXE, .NONE},
+				{.EMPTY, .NONE, .NONE},
+				{.NONE, .EMPTY, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .EMPTY, .NONE},
+				{.GOLD_PICKAXE, .NONE, .NONE},
+				{.NONE, .EMPTY, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .EMPTY, .NONE},
+				{.EMPTY, .NONE, .NONE},
+				{.NONE, .IRON_PICKAXE, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .EMPTY, .NONE},
+				{.DIAMOND_CHESTPLATE, .NONE, .EMPTY},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {3, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.EMPTY, .NONE, .GOLD_CHESTPLATE},
+				{.NONE, .EMPTY, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {3, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .EMPTY, .NONE},
+				{.EMPTY, .NONE, .IRON_CHESTPLATE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {3, 2},
+		}
+	)
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.EMPTY, .NONE, .NONE},
+				{.NONE, .EMPTY, .NONE},
+				{.GOLD_SWORD, .NONE, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.EMPTY, .NONE, .NONE},
+				{.NONE, .IRON, .NONE},
+				{.NONE, .NONE, .EMPTY},
+			},
+			size = {3, 3},
+		}
+	)
+	
+	solve_board(&board);
+
+	print_solution(board);
+}
+
 // odin run .
 main :: proc() {
-	problem4();
+	problem20();
 }
