@@ -168,10 +168,8 @@ apply_fixed_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 	}
 }
 
-apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
-	// board.clues = make([dynamic]Clue);
+get_offsets_array :: proc(clue: Clue) -> [dynamic][2]int {
 	offsets := make([dynamic][2]int);
-	defer delete(offsets);
 
 	for x in 0..<3 - clue.size.x + 1 {
 		for y in 0..<3 - clue.size.y + 1 {
@@ -179,12 +177,19 @@ apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 		}
 	}
 
+	return offsets;
+}
+
+apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
+	// board.clues = make([dynamic]Clue);
+	offsets := get_offsets_array(clue);
+	defer delete(offsets);
+
+
 	satisfiable := make([]bool, len(offsets));
 	for &a in satisfiable {
 		a = true;
 	}
-	// satisfiable = !satisfiable;
-
 	// fmt.printfln("%#v", clue);
 
 
@@ -246,34 +251,16 @@ apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 			satisfy_count += 1;
 			correct_offset = offsets[index] ;
 		} else {
-			fmt.println("Unsatisfiable clue: ")
-			fmt.println(offsets, satisfiable);
-			fmt.printfln("%#v", clue);
+			// fmt.println("Unsatisfiable clue: ")
+			// fmt.println(offsets, satisfiable);
+			// fmt.printfln("%#v", clue);
 
 		}
 	}
 
 	if satisfy_count == 1 {
-		// fmt.printfln("%#v", clue);
-		// fmt.println(correct_offset);
+		fixed_clue := create_fixed_clue(clue, correct_offset);
 
-
-		fixed_clue := Clue{
-			item = {
-				{.NONE, .NONE, .NONE},
-				{.NONE, .NONE, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 3},
-		}
-
-		for i, ii in correct_offset.x..<3 {
-			for j, jj in correct_offset.y..<3 {
-				fixed_clue.item[j][i] = clue.item[jj][ii];
-			}
-		}
-
-		// fmt.printfln("%#v", fixed_clue);
 		apply_fixed_clue(cells, fixed_clue);
 	} else {
 		// fmt.printfln("%#v", clue);
@@ -283,6 +270,25 @@ apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 	// fmt.println(offsets, satisfiable);
 
 
+}
+
+create_fixed_clue :: proc(clue: Clue, correct_offset: [2]int) -> Clue {
+	fixed_clue := Clue{
+		item = {
+			{.NONE, .NONE, .NONE},
+			{.NONE, .NONE, .NONE},
+			{.NONE, .NONE, .NONE},
+		},
+		size = {3, 3},
+	}
+
+	for i, ii in correct_offset.x..<3 {
+		for j, jj in correct_offset.y..<3 {
+			fixed_clue.item[j][i] = clue.item[jj][ii];
+		}
+	}
+
+	return fixed_clue;
 }
 
 check_final_item :: proc(cells: ^[3][3]Cell_State, index: [2]int) {
@@ -298,7 +304,7 @@ check_final_item :: proc(cells: ^[3][3]Cell_State, index: [2]int) {
 
 	// disable that everywhere else
 	if possible_items == 1 {
-		fmt.println("Final item on cell ", index, remaining_type);
+		// fmt.println("Final item on cell ", index, remaining_type);
 		for ii in 0..<3 {
 			for jj in 0..<3 {
 				if ii == index.x && jj == index.y do continue;
@@ -312,17 +318,134 @@ check_final_item :: proc(cells: ^[3][3]Cell_State, index: [2]int) {
 	}
 }
 
+illegal_state :: proc(board: Board_State) -> bool {
+	for x in 0..<3 {
+		for y in 0..<3 {
+			available_count: int;
+			for i in 0..<9 {
+				if board.cells[y][x].available[cast(ITEM_TYPE) i] {
+					available_count += 1;
+				}
+			}
+			if available_count == 0 do return true;
+		}
+	}
+	return false;
+}
+
 sort_clues :: proc(board: ^Board_State) {
 	slice.sort_by_cmp(board.clues[:], compare_clues);
 
 
 }
 
+combine_clues :: proc(clues: []Clue) -> [dynamic]Clue {
+	offsets: [dynamic][dynamic][2]int = make([dynamic][dynamic][2]int);
+	defer delete(offsets);
+
+	for clue in clues {
+		append(&offsets, get_offsets_array(clue));
+	}
+
+	offset_lengths: []int = make([]int, len(offsets));
+	defer delete(offset_lengths);
+
+	for offset_array, index in offsets {
+		offset_lengths[index] = len(offsets[index]);
+	}
+
+	permutation: []int = make([]int, len(offsets));
+	defer delete(permutation);
+
+	invalid_permutations: [dynamic][dynamic]int = make([dynamic][dynamic]int);
+
+	for {
+		// fmt.println(permutation);
+		
+		// handle current permutation here
+		prunable := true
+		if len(invalid_permutations) == 0 do prunable = false;
+		for invalid_perm in invalid_permutations {
+			for a, index in invalid_perm {
+				if a != permutation[index] {
+					prunable = false;
+					break;
+				}
+			}
+			if !prunable do break;
+		}
+
+		
+		if !prunable {
+			combined_clues := make([dynamic]Clue);
+			legal_permutation := true;
+			aux_board: Board_State;
+			init_board_state(&aux_board);
+			defer destroy_board_state(&aux_board);
+
+			partial_permutation := make([dynamic]int);
+			defer delete(partial_permutation);
+
+			for offset_index, index in permutation {
+				append(&partial_permutation, offset_index);
+
+				fixed_clue := create_fixed_clue(clues[index], offsets[index][offset_index]);
+
+				apply_fixed_clue(&aux_board.cells, fixed_clue);
+
+				if illegal_state(aux_board) {
+					append(&invalid_permutations, partial_permutation);
+					legal_permutation = false;
+					delete(combined_clues);
+					break;
+				}
+
+				append(&combined_clues, fixed_clue);
+			}
+			if legal_permutation  && is_solved(aux_board){
+				// print_solution(aux_board);
+				return combined_clues;
+				// return;
+			}
+		}
+		// end of current permutation
+
+		place_pointer: int = len(offset_lengths) - 1;
+
+		for {
+			if place_pointer < 0 do break;
+			
+			permutation[place_pointer] += 1;
+			if permutation[place_pointer] >= offset_lengths[place_pointer] {
+				permutation[place_pointer] = 0;
+				place_pointer -= 1;
+			} else do break;
+			
+		}
+		if place_pointer < 0 do break;
+	}
+	return {};
+}
+
 solve_board :: proc(board: ^Board_State) {
 	sort_clues(board);
 
+	if board.clues[0].size != {3, 3} {
+		fmt.println("No fixed clue. Must combine existing clues");
+
+		// delete(board.clues);
+		board.clues = combine_clues(board.clues[:]);
+		// try combining clues in a permutation
+		// check if state is illegal
+		// 	- if state is legal, create fixed clue
+		// 	- if state is illegal, proceed to next permutation
+	}
+
 	for i in 0..<100{
-		if is_solved(board^) do break;
+		if is_solved(board^) {
+			fmt.println("Took ", i, "iterations to solve");
+			break;
+		};
 
 		index := 0;
 		for clue in board.clues{
@@ -372,586 +495,40 @@ print_solution :: proc(board: Board_State) {
 	}
 }
 
-problem1 :: proc() {
-	board: Board_State;
-	init_board_state(&board);
-	defer destroy_board_state(&board);
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.GOLD_CHESTPLATE, .DIAMOND_SWORD, .IRON_PICKAXE},
-				{.IRON_SWORD, .GOLD_SWORD, .DIAMOND_CHESTPLATE},
-				{.PICKAXE, .IRON, .DIAMOND},
-			},
-			size = {3, 3},
-		}
-	)
-
-	apply_fixed_clue(&board.cells, board.clues[0]);
-
-	// fmt.printfln("%#v", board.cells);
-	print_solution(board);
-}
-
-problem2 :: proc() {
-	board: Board_State;
-	init_board_state(&board);
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.CHESTPLATE, .NONE, .NONE},
-				{.CHESTPLATE, .NONE, .NONE},
-				{.PICKAXE, .NONE, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-	
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.DIAMOND, .DIAMOND, .DIAMOND},
-				{.NONE, .NONE, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-	
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .NONE, .NONE},
-				{.GOLD, .GOLD, .GOLD},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-	
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .NONE, .SWORD},
-				{.NONE, .NONE, .PICKAXE},
-				{.NONE, .NONE, .CHESTPLATE},
-			},
-			size = {3, 3},
-		}
-	)
-
-	for clue in board.clues{
-		apply_fixed_clue(&board.cells, clue);
-	}
-
-	// fmt.printfln("%#v", board.cells);
-	print_solution(board);
-}
-
-problem3 :: proc() {
-	board: Board_State;
-	init_board_state(&board);
-
-	// append(&board.clues, 
-	// 	Clue{
-	// 		item = {
-	// 			{.NONE, .NONE, .NONE},
-	// 			{.NONE, .NONE, .NONE},
-	// 			{.NONE, .NONE, .NONE},
-	// 		},
-	// 		size = {3, 3},
-	// 	}
-	// )
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.DIAMOND, .SWORD, .NONE},
-				{.NONE, .NONE, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .DIAMOND, .CHESTPLATE},
-				{.NONE, .NONE, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.PICKAXE, .NONE, .NONE},
-				{.GOLD_SWORD, .NONE, .NONE},
-				{.DIAMOND, .NONE, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .NONE, .IRON},
-				{.NONE, .NONE, .IRON_SWORD},
-				{.NONE, .NONE, .CHESTPLATE},
-			},
-			size = {3, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .NONE, .NONE},
-				{.NONE, .NONE, .NONE},
-				{.CHESTPLATE, .IRON, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .NONE, .NONE},
-				{.NONE, .NONE, .NONE},
-				{.NONE, .PICKAXE, .GOLD},
-			},
-			size = {3, 3},
-		}
-	)
-
-	for clue in board.clues{
-		apply_fixed_clue(&board.cells, clue);
-	}
-
-	// fmt.printfln("%#v", board.cells);
-	print_solution(board);
-}
-
-problem4 :: proc() {
-	board: Board_State;
-	init_board_state(&board);
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.EMPTY, .EMPTY, .NONE},
-				{.DIAMOND_CHESTPLATE, .NONE, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.EMPTY, .EMPTY, .EMPTY},
-				{.NONE, .DIAMOND_SWORD, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 2},
-		}
-	)
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.EMPTY, .DIAMOND_PICKAXE, .NONE},
-				{.NONE, .EMPTY, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.EMPTY, .NONE, .NONE},
-				{.EMPTY, .GOLD_CHESTPLATE, .NONE},
-				{.EMPTY, .NONE, .NONE},
-			},
-			size = {2, 3},
-		}
-	)
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .EMPTY, .NONE},
-				{.EMPTY, .GOLD_SWORD, .EMPTY},
-				{.NONE, .EMPTY, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .EMPTY, .NONE},
-				{.GOLD_PICKAXE, .EMPTY, .NONE},
-				{.NONE, .EMPTY, .NONE},
-			},
-			size = {2, 3},
-		}
-	)
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.IRON_CHESTPLATE, .NONE, .NONE},
-				{.EMPTY, .EMPTY, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .IRON_SWORD, .NONE},
-				{.EMPTY, .EMPTY, .EMPTY},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 2},
-		}
-	)
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .EMPTY, .NONE},
-				{.EMPTY, .IRON_PICKAXE, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-
-	sort_clues(&board);
-
-
-	index := 0;
-	for clue in board.clues{
-		if clue.size.x == 3 && clue.size.y == 3 {
-			apply_fixed_clue(&board.cells, clue);
-			index += 1;
-		}
-	}
-
-	remove_range(&board.clues, 0, index);
-
-	index = 0;
-	for clue in board.clues{
-		apply_offset_clue(&board.cells, clue);
-		index += 1;
-	}
-
-	print_solution(board);
-}
-
-problem7 :: proc() {
-	board: Board_State;
-	init_board_state(&board);
-
-	// append(&board.clues, 
-	// 	Clue{
-	// 		item = {
-	// 			{.NONE, .NONE, .NONE},
-	// 			{.NONE, .NONE, .NONE},
-	// 			{.NONE, .NONE, .NONE},
-	// 		},
-	// 		size = {3, 3},
-	// 	}
-	// )
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.DIAMOND, .NONE, .NONE},
-				{.NONE, .DIAMOND, .NONE},
-				{.NONE, .NONE, .DIAMOND},
-			},
-			size = {3, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .NONE, .PICKAXE},
-				{.NONE, .PICKAXE, .NONE},
-				{.PICKAXE, .NONE, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.IRON, .NONE, .NONE},
-				{.IRON, .IRON, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .SWORD, .NONE},
-				{.SWORD, .SWORD, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.GOLD, .GOLD, .NONE},
-				{.NONE, .GOLD, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.CHESTPLATE, .CHESTPLATE, .NONE},
-				{.CHESTPLATE, .NONE, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-
-	solve_board(&board);
-
-	print_solution(board);
-}
-
-problem20 :: proc() {
-	board: Board_State;
-	init_board_state(&board);
-
-	// append(&board.clues, 
-	// 	Clue{
-	// 		item = {
-	// 			{.NONE, .NONE, .NONE},
-	// 			{.NONE, .NONE, .NONE},
-	// 			{.NONE, .NONE, .NONE},
-	// 		},
-	// 		size = {3, 3},
-	// 	}
-	// )
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .DIAMOND_PICKAXE, .NONE},
-				{.EMPTY, .NONE, .NONE},
-				{.NONE, .EMPTY, .NONE},
-			},
-			size = {2, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .EMPTY, .NONE},
-				{.GOLD_PICKAXE, .NONE, .NONE},
-				{.NONE, .EMPTY, .NONE},
-			},
-			size = {2, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .EMPTY, .NONE},
-				{.EMPTY, .NONE, .NONE},
-				{.NONE, .IRON_PICKAXE, .NONE},
-			},
-			size = {2, 3},
-		}
-	)
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .EMPTY, .NONE},
-				{.DIAMOND_CHESTPLATE, .NONE, .EMPTY},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 2},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.EMPTY, .NONE, .GOLD_CHESTPLATE},
-				{.NONE, .EMPTY, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 2},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .EMPTY, .NONE},
-				{.EMPTY, .NONE, .IRON_CHESTPLATE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {3, 2},
-		}
-	)
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.EMPTY, .NONE, .NONE},
-				{.NONE, .EMPTY, .NONE},
-				{.GOLD_SWORD, .NONE, .NONE},
-			},
-			size = {2, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.EMPTY, .NONE, .NONE},
-				{.NONE, .IRON, .NONE},
-				{.NONE, .NONE, .EMPTY},
-			},
-			size = {3, 3},
-		}
-	)
-	
-	solve_board(&board);
-
-	print_solution(board);
-}
-problem34_m :: proc() {
-	board: Board_State;
-	init_board_state(&board);
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .CHESTPLATE, .SWORD},
-				{.GOLD, .PICKAXE, .CHESTPLATE},
-				{.PICKAXE, .IRON, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.SWORD, .DIAMOND, .NONE},
-				{.GOLD, .SWORD, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.IRON, .GOLD, .NONE},
-				{.GOLD, .DIAMOND, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.GOLD, .DIAMOND, .NONE},
-				{.DIAMOND, .IRON, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-	
-	solve_board(&board);
-
-	print_solution(board);
-}
-
-problem34_m2 :: proc() {
-	board: Board_State;
-	init_board_state(&board);
-
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.NONE, .CHESTPLATE, .SWORD},
-				{.NONE, .PICKAXE, .CHESTPLATE},
-				{.EMPTY, .NONE, .NONE},
-			},
-			size = {3, 3},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.GOLD, .PICKAXE, .NONE},
-				{.PICKAXE, .IRON, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.SWORD, .DIAMOND, .NONE},
-				{.GOLD, .SWORD, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.IRON, .GOLD, .NONE},
-				{.GOLD, .DIAMOND, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-	append(&board.clues, 
-		Clue{
-			item = {
-				{.GOLD, .DIAMOND, .NONE},
-				{.DIAMOND, .IRON, .NONE},
-				{.NONE, .NONE, .NONE},
-			},
-			size = {2, 2},
-		}
-	)
-	
-	solve_board(&board);
-
-	print_solution(board);
-}
-
 
 
 // odin run .
 main :: proc() {
-	problem34_m2();
+	// invalid_problem();
+
+	problem36();
+	// problem1();
+	// problem2();
+	// problem3();
+	// problem4();
+	// problem7();
+	// problem20();
+	// problem34_m();
+	// problem34_m2();
+
+	// asd: []int = {2, 6, 4};
+	// counter: []int = make([]int, len(asd));
+
+	// for {
+	// 	fmt.println(counter);
+
+	// 	place_pointer: int = len(asd) - 1;
+
+	// 	for {
+	// 		if place_pointer < 0 do break;
+			
+	// 		counter[place_pointer] += 1;
+	// 		if counter[place_pointer] >= asd[place_pointer] {
+	// 			counter[place_pointer] = 0;
+	// 			place_pointer -= 1;
+	// 		} else do break;
+			
+	// 	}
+	// 	if place_pointer < 0 do break;
+	// }
 }
