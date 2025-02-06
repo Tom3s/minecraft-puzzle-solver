@@ -87,15 +87,17 @@ init_cell_state :: proc(cell: ^Cell_State) {
 	}
 }
 
-init_board_state :: proc(board: ^Board_State) {
+init_board_state :: proc(board: ^Board_State, reset_clues: bool = true) {
 	for i in 0..<3 {
 		for j in 0..<3 {
 			init_cell_state(&board.cells[j][i]);
 		}
 	}
 
-	board.clues = make([dynamic]Clue);
-	board.negative_clues = make([dynamic]Negative_Clue);
+	if reset_clues {
+		board.clues = make([dynamic]Clue);
+		board.negative_clues = make([dynamic]Negative_Clue);
+	}
 }
 
 destroy_board_state :: proc(board: ^Board_State) {
@@ -339,7 +341,9 @@ sort_clues :: proc(board: ^Board_State) {
 
 }
 
-combine_clues :: proc(clues: []Clue) -> [dynamic]Clue {
+combine_clues :: proc(clues: []Clue) -> Board_State {
+	fmt.println(clues);
+
 	offsets: [dynamic][dynamic][2]int = make([dynamic][dynamic][2]int);
 	defer delete(offsets);
 
@@ -381,7 +385,7 @@ combine_clues :: proc(clues: []Clue) -> [dynamic]Clue {
 			legal_permutation := true;
 			aux_board: Board_State;
 			init_board_state(&aux_board);
-			defer destroy_board_state(&aux_board);
+			// defer destroy_board_state(&aux_board);
 
 			partial_permutation := make([dynamic]int);
 			defer delete(partial_permutation);
@@ -402,9 +406,11 @@ combine_clues :: proc(clues: []Clue) -> [dynamic]Clue {
 
 				append(&combined_clues, fixed_clue);
 			}
-			if legal_permutation  && is_solved(aux_board){
-				// print_solution(aux_board);
-				return combined_clues;
+
+			print_solution(aux_board);
+			if legal_permutation && is_solved(aux_board){
+				print_solution(aux_board);
+				return aux_board;
 				// return;
 			}
 		}
@@ -424,27 +430,60 @@ combine_clues :: proc(clues: []Clue) -> [dynamic]Clue {
 		}
 		if place_pointer < 0 do break;
 	}
+	fmt.println("No solution found ://")
 	return {};
 }
 
-solve_board :: proc(board: ^Board_State) {
+solve_board :: proc(board: ^Board_State, try_combinations: bool = false) -> Board_State {
 	sort_clues(board);
 
-	if board.clues[0].size != {3, 3} {
-		fmt.println("No fixed clue. Must combine existing clues");
+	for i in 0..<len(board.clues) {
+		if board.clues[i].size != {3, 3} {
+			fmt.println("No fixed clue. Must combine existing clues");
 
-		// delete(board.clues);
-		board.clues = combine_clues(board.clues[:]);
-		// try combining clues in a permutation
-		// check if state is illegal
-		// 	- if state is legal, create fixed clue
-		// 	- if state is illegal, proceed to next permutation
+			old_clue := board.clues[i]
+
+			offsets := get_offsets_array(old_clue);
+			
+			for offset in offsets {
+				aux_board: Board_State;
+				init_board_state(&aux_board);
+				// defer destroy_board_state(&aux_board);
+	
+				// append_elems(&aux_board.clues, ..board.clues[:]);
+				// copy_slice(aux_board.clues[:], board.clues[:]);
+				// copy(aux_board.clues[:], board.clues[:])
+				append_elems(&aux_board.clues, ..board.clues[:]);
+	
+				fmt.println(i, offset);
+				
+	
+				
+				aux_board.clues[i] = create_fixed_clue(old_clue, offset);
+
+
+
+				solve_board(&aux_board);
+
+				if is_solved(aux_board) {
+					return aux_board;
+				} else {
+					destroy_board_state(&aux_board);
+				}
+			}
+
+			// delete(board.clues);
+			// board.clues = combine_clues(board.clues[:]);
+		} else {
+			break;
+		}
 	}
 
 	for i in 0..<100{
 		if is_solved(board^) {
 			fmt.println("Took ", i, "iterations to solve");
-			break;
+			// print_solution(board^)
+			return board^;
 		};
 
 		index := 0;
@@ -455,7 +494,7 @@ solve_board :: proc(board: ^Board_State) {
 			}
 		}
 		
-		remove_range(&board.clues, 0, index);
+		// remove_range(&board.clues, 0, index);
 		
 		index = 0;
 		for clue in board.clues{
@@ -463,6 +502,11 @@ solve_board :: proc(board: ^Board_State) {
 			index += 1;
 		}
 	}
+	if try_combinations {
+		init_board_state(board, false);
+		return combine_clues(board.clues[:]);
+	}
+	return {};
 }
 
 is_solved :: proc(board: Board_State) -> bool{
@@ -501,7 +545,7 @@ print_solution :: proc(board: Board_State) {
 main :: proc() {
 	// invalid_problem();
 
-	problem36();
+	problem19();
 	// problem1();
 	// problem2();
 	// problem3();
