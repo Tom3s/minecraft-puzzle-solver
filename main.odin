@@ -839,8 +839,119 @@ problem20 :: proc() {
 
 	print_solution(board);
 }
+problem34_m :: proc() {
+	board: Board_State;
+	init_board_state(&board);
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .CHESTPLATE, .SWORD},
+				{.GOLD, .PICKAXE, .CHESTPLATE},
+				{.PICKAXE, .IRON, .NONE},
+			},
+			size = {3, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.SWORD, .DIAMOND, .NONE},
+				{.GOLD, .SWORD, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.IRON, .GOLD, .NONE},
+				{.GOLD, .DIAMOND, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.GOLD, .DIAMOND, .NONE},
+				{.DIAMOND, .IRON, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	
+	solve_board(&board);
+
+	print_solution(board);
+}
+
+problem34_m2 :: proc() {
+	board: Board_State;
+	init_board_state(&board);
+
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .CHESTPLATE, .SWORD},
+				{.NONE, .PICKAXE, .CHESTPLATE},
+				{.EMPTY, .NONE, .NONE},
+			},
+			size = {3, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.GOLD, .PICKAXE, .NONE},
+				{.PICKAXE, .IRON, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.SWORD, .DIAMOND, .NONE},
+				{.GOLD, .SWORD, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.IRON, .GOLD, .NONE},
+				{.GOLD, .DIAMOND, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.GOLD, .DIAMOND, .NONE},
+				{.DIAMOND, .IRON, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	
+	solve_board(&board);
+
+	print_solution(board);
+}
+
+
 
 // odin run .
 main :: proc() {
-	problem20();
+	problem34_m2();
 }
