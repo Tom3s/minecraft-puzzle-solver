@@ -342,7 +342,7 @@ sort_clues :: proc(board: ^Board_State) {
 }
 
 combine_clues :: proc(clues: []Clue) -> Board_State {
-	fmt.println(clues);
+	// fmt.println(clues);
 
 	offsets: [dynamic][dynamic][2]int = make([dynamic][dynamic][2]int);
 	defer delete(offsets);
@@ -407,9 +407,9 @@ combine_clues :: proc(clues: []Clue) -> Board_State {
 				append(&combined_clues, fixed_clue);
 			}
 
-			print_solution(aux_board);
+			// print_solution(aux_board);
 			if legal_permutation && is_solved(aux_board){
-				print_solution(aux_board);
+				// print_solution(aux_board);
 				return aux_board;
 				// return;
 			}
@@ -545,7 +545,9 @@ print_solution :: proc(board: Board_State) {
 main :: proc() {
 	// invalid_problem();
 
+	// problem36();
 	problem19();
+	// problem19();
 	// problem1();
 	// problem2();
 	// problem3();

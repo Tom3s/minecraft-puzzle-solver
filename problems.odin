@@ -702,8 +702,8 @@ problem36 :: proc() {
 		}
 	)
 
-	// solved_board := solve_board(&board);
-	solved_board := combine_clues(board.clues[:]);
+	solved_board := solve_board(&board);
+	// solved_board := combine_clues(board.clues[:]);
 
 	print_solution(solved_board);
 }
@@ -726,7 +726,7 @@ problem19 :: proc() {
 		Clue{
 			item = {
 				{.CHESTPLATE, .SWORD, .NONE},
-				{.SWORD, .CHESTPLATE, .NONE},
+				{.PICKAXE, .CHESTPLATE, .NONE},
 				{.NONE, .NONE, .NONE},
 			},
 			size = {2, 2},
@@ -754,8 +754,8 @@ problem19 :: proc() {
 	)
 
 
-	// solved_board := solve_board(&board, true);
-	solved_board := combine_clues(board.clues[:]);
+	solved_board := solve_board(&board, true);
+	// solved_board := combine_clues(board.clues[:]);
 
 
 	print_solution(solved_board);
