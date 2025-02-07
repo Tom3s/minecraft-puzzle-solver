@@ -546,7 +546,7 @@ main :: proc() {
 	// invalid_problem();
 
 	// problem36();
-	problem19();
+	problem17();
 	// problem19();
 	// problem1();
 	// problem2();
