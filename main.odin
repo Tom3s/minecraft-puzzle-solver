@@ -3,6 +3,8 @@ package main
 import "core:fmt"
 import "core:slice"
 
+MAX_ITERATIONS :: 5;
+
 ITEM_TYPE :: enum {
 	IRON_SWORD,
 	IRON_PICKAXE,
@@ -317,6 +319,123 @@ disable_ambiguous_cells :: proc(cells: ^[3][3]Cell_State, type: CLUE_TYPE) {
 	}
 }
 
+is_material :: proc(type: CLUE_TYPE) -> bool {
+	if type == .IRON || type == .GOLD || type == .DIAMOND {
+		return true;
+	}
+	return false;
+}
+
+is_tool :: proc(type: CLUE_TYPE) -> bool{
+	if type == .SWORD || type == .PICKAXE || type == .CHESTPLATE {
+		return true;
+	}
+	return false;
+}
+
+Materials :: struct {
+	iron: bool,
+	gold: bool,
+	diamond: bool,
+}
+
+get_materials :: proc(cell: Cell_State) -> Materials {
+	materials: Materials;
+	for type in ITEM_TYPE {
+		switch type {
+			case .IRON_SWORD ..= .IRON_CHESTPLATE:
+				materials.iron = true;
+			case .GOLD_SWORD ..= .GOLD_CHESTPLATE:
+				materials.gold = true;
+			case .DIAMOND_SWORD ..= .DIAMOND_CHESTPLATE:
+				materials.diamond = true;
+		}
+	}
+
+	return materials;
+}
+
+Tools :: struct {
+	sword: bool,
+	pickaxe: bool,
+	chestplate: bool,
+}
+
+get_tools :: proc(cell: Cell_State) -> Tools {
+	tools: Tools;
+	for type in ITEM_TYPE {
+		if cell.available[type] {
+			switch type {
+				case .IRON_SWORD: fallthrough
+				case .GOLD_SWORD: fallthrough
+				case .DIAMOND_SWORD: 
+					tools.sword = true;
+
+				case .IRON_PICKAXE: fallthrough
+				case .GOLD_PICKAXE: fallthrough
+				case .DIAMOND_PICKAXE: 
+					tools.pickaxe = true;
+
+				case .IRON_CHESTPLATE: fallthrough
+				case .GOLD_CHESTPLATE: fallthrough
+				case .DIAMOND_CHESTPLATE: 
+					tools.chestplate = true;
+			}
+		}
+	}
+
+	return tools;
+}
+get_ambiguous_cells :: proc(cells: ^[3][3]Cell_State, type: CLUE_TYPE) -> [dynamic][2]int {
+
+	ambi_cells := make([dynamic][2]int);
+
+	for i in 0..<3 {
+		for j in 0..<3 {
+			current_cell := cells[j][i];
+
+			if is_material(type) {
+				materials := get_materials(current_cell);
+
+				#partial switch type {
+					case .IRON:
+						if materials.iron && (materials.gold || materials.diamond) {
+							append(&ambi_cells, [2]int{i, j});
+						}
+					case .GOLD:
+						if materials.gold && (materials.iron || materials.diamond) {
+							append(&ambi_cells, [2]int{i, j});
+						}
+					case .DIAMOND:
+						if materials.diamond && (materials.iron || materials.gold) {
+							append(&ambi_cells, [2]int{i, j});
+						}
+				}
+			} else if is_tool(type) {
+				tools := get_tools(current_cell);
+
+				#partial switch type {
+					case .SWORD:
+						if tools.sword && (tools.pickaxe || tools.chestplate) {
+							append(&ambi_cells, [2]int{i, j});
+						}
+					case .PICKAXE:
+						if tools.pickaxe && (tools.sword || tools.chestplate) {
+							append(&ambi_cells, [2]int{i, j});
+						}
+					case .CHESTPLATE:
+						if tools.chestplate && (tools.sword || tools.pickaxe) {
+							append(&ambi_cells, [2]int{i, j});
+						}
+				}
+			}
+			
+		}
+	}
+
+	return ambi_cells;
+}
+
 check_triplets :: proc(cells: ^[3][3]Cell_State) {
 	remaining: [CLUE_TYPE]int;
 
@@ -370,6 +489,8 @@ check_triplets :: proc(cells: ^[3][3]Cell_State) {
 					remaining[.CHESTPLATE] -= 1;
 			}	
 
+			if remaining_item != nil do continue;
+
 			remaining_material := only_material_remaining(current_cell);
 
 			#partial switch remaining_material {
@@ -380,6 +501,8 @@ check_triplets :: proc(cells: ^[3][3]Cell_State) {
 				case .DIAMOND:
 					remaining[.DIAMOND] -= 1;
 			}
+
+			if remaining_material != .NONE do continue;
 			
 			remaining_tool := only_tool_remaining(current_cell);
 
@@ -396,15 +519,31 @@ check_triplets :: proc(cells: ^[3][3]Cell_State) {
 
 	// possible_cells := make([CLUE_TYPE][dynamic][2]int);
 
+	// fmt.println(remaining);
+	// if true do return;
+
 	for type in CLUE_TYPE {
 		if remaining[type] == 0 {
 			// fmt.println("All found of: ", type);
 			disable_ambiguous_cells(cells, type);
-		} else if remaining[type] == 1 {
-			// get_possible_cells()
-			// append(&possible_cells[type], )
-			fmt.println("One remaining of: ", type);
+
+			// print_hacky(cells^);
+
+			continue;
+		} 
+		ambi_cells := get_ambiguous_cells(cells, type);
+
+		if len(ambi_cells) == remaining[type] {
+			fmt.println("Ambiguous cells: ", ambi_cells);
 		}
+		// else if remaining[type] == 1 {
+		// 	ambi_cells := get_ambiguous_cells(cells, type);
+		// 	// append(&possible_cells[type], )
+		// 	// fmt.println("One remaining of: ", type);
+		// 	fmt.println("Ambiguous cells: ", ambi_cells);
+		// 	if len(ambi_cells) == 1 {
+		// 	}
+		// }
 	}
 }
 
@@ -418,6 +557,39 @@ get_offsets_array :: proc(clue: Clue) -> [dynamic][2]int {
 	}
 
 	return offsets;
+}
+
+disable_unsatisfiable_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue, offset: [2]int) {
+	items_to_disable := make([dynamic]ITEM_TYPE);
+
+	for i in 0..<clue.size.x {
+		for j in 0..<clue.size.y{
+			current_clue := clue.item[j][i];
+
+			#partial switch current_clue {
+				case .EMPTY: fallthrough
+				case .NONE: ;
+
+				case .IRON_SWORD ..= .DIAMOND_CHESTPLATE: 
+					append(&items_to_disable, cast(ITEM_TYPE) current_clue)
+			}
+		}
+	}
+
+	for i in 0..<clue.size.x {
+		for j in 0..<clue.size.y{
+			current_clue := clue.item[j][i];
+			current_cell := &cells[j + offset.y][i + offset.x];
+
+
+			for item in items_to_disable {
+				if cast(ITEM_TYPE) current_clue == item do continue;
+
+				fmt.println("Disabling ", item, " on ", i, j);
+				current_cell.available[item] = false;
+			}
+		}
+	}
 }
 
 apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
@@ -494,6 +666,7 @@ apply_offset_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 			// fmt.println("Unsatisfiable clue: ")
 			// fmt.println(offsets, satisfiable);
 			// fmt.printfln("%#v", clue);
+			disable_unsatisfiable_clue(cells, clue, offsets[index]);
 
 		}
 	}
@@ -706,6 +879,8 @@ solve_board :: proc(board: ^Board_State, try_combinations: bool = false) -> Boar
 				if is_solved(aux_board) {
 					return aux_board;
 				} else {
+					fmt.println("\n\n");
+					print_solution(aux_board);
 					destroy_board_state(&aux_board);
 				}
 			}
@@ -717,7 +892,7 @@ solve_board :: proc(board: ^Board_State, try_combinations: bool = false) -> Boar
 		}
 	}
 
-	for i in 0..<100{
+	for i in 0..<MAX_ITERATIONS{
 		if is_solved(board^) {
 			fmt.println("Took ", i, "iterations to solve");
 			// print_solution(board^)
@@ -780,23 +955,36 @@ print_solution :: proc(board: Board_State) {
 	}
 }
 
+print_hacky :: proc(cells: [3][3]Cell_State) {
+	for i in 0..<3 {
+		for j in 0..<3 {
+			fmt.print("[ ");
+			for type, type_name in cells[i][j].available {
+				if type {
+					fmt.print(type_name, " ");
+				}
+			}
+			fmt.print("] ");
+		}
+		fmt.println();
+	}
+}
+
 
 
 // odin run .
 main :: proc() {
 	// invalid_problem();
 
-	// problem34();
 	// problem17();
-	problem19();
+	// problem19_m2();
+	problem20();
+	// problem34();
 	// problem1();
 	// problem2();
 	// problem3();
 	// problem4();
 	// problem7();
-	// problem20();
-	// problem34_m();
-	// problem17_m();
 
 	// asd: []int = {2, 6, 4};
 	// counter: []int = make([]int, len(asd));
