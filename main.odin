@@ -13,6 +13,8 @@ ITEM_TYPE :: enum {
 	DIAMOND_SWORD,
 	DIAMOND_PICKAXE,
 	DIAMOND_CHESTPLATE,
+
+	// NONE,
 }
 
 CLUE_TYPE :: enum {
@@ -166,6 +168,242 @@ apply_fixed_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue) {
 			}
 
 			check_final_item(cells, {i, j});
+
+			check_triplets(cells);
+		}
+	}
+}
+
+only_item_remaining :: proc(cell: Cell_State) -> ITEM_TYPE {
+	count := 0;
+	available_type: ITEM_TYPE = nil;
+	for check_type in ITEM_TYPE {
+		if cell.available[check_type] {
+			count += 1;
+			available_type = check_type;
+			if count > 1 do return nil;
+		}
+	}
+
+	if count == 1 do return available_type;
+	return nil;
+}
+
+only_material_remaining :: proc(cell: Cell_State) -> CLUE_TYPE {
+	iron := 0;
+	gold := 0;
+	diamond := 0;
+
+	for type in ITEM_TYPE {
+		if cell.available[type] {
+			switch type {
+				case .IRON_SWORD ..= .IRON_CHESTPLATE:
+					iron += 1;
+				case .GOLD_SWORD ..= .GOLD_CHESTPLATE:
+					gold += 1;
+				case .DIAMOND_SWORD ..= .DIAMOND_CHESTPLATE:
+					diamond += 1;
+			}
+		}
+	}
+
+	if iron != 0 && gold + diamond == 0 {
+		return .IRON;
+	}
+
+	if gold != 0 && iron + diamond == 0 {
+		return .GOLD;
+	}
+
+	if diamond != 0 && iron + gold == 0 {
+		return .DIAMOND;
+	}
+
+	return .NONE;
+
+}
+
+only_tool_remaining :: proc(cell: Cell_State) -> CLUE_TYPE {
+	sword := 0;
+	pickaxe := 0;
+	chestplate := 0;
+
+	for type in ITEM_TYPE {
+		if cell.available[type] {
+			switch type {
+				case .IRON_SWORD: fallthrough
+				case .GOLD_SWORD: fallthrough
+				case .DIAMOND_SWORD: 
+					sword += 1;
+
+				case .IRON_PICKAXE: fallthrough
+				case .GOLD_PICKAXE: fallthrough
+				case .DIAMOND_PICKAXE: 
+					pickaxe += 1;
+
+				case .IRON_CHESTPLATE: fallthrough
+				case .GOLD_CHESTPLATE: fallthrough
+				case .DIAMOND_CHESTPLATE: 
+					chestplate += 1;
+			}
+		}
+	}
+
+	if sword != 0 && pickaxe + chestplate == 0 {
+		return .SWORD;
+	}
+
+	if pickaxe != 0 && sword + chestplate == 0 {
+		return .PICKAXE;
+	}
+
+	if chestplate != 0 && sword + pickaxe == 0 {
+		return .CHESTPLATE;
+	}
+
+	return .NONE;
+
+}
+
+disable_ambiguous_cells :: proc(cells: ^[3][3]Cell_State, type: CLUE_TYPE) {
+	for i in 0..<3 {
+		for j in 0..<3 {
+			current_cell := &cells[j][i];
+			
+			#partial switch type {
+				case .IRON:
+					if only_material_remaining(current_cell^) == .NONE {
+						current_cell.available[.IRON_SWORD] = false;
+						current_cell.available[.IRON_PICKAXE] = false;
+						current_cell.available[.IRON_CHESTPLATE] = false;
+					}
+
+				case .GOLD:
+					if only_material_remaining(current_cell^) == .NONE {
+						current_cell.available[.GOLD_SWORD] = false;
+						current_cell.available[.GOLD_PICKAXE] = false;
+						current_cell.available[.GOLD_CHESTPLATE] = false;
+					}
+
+				case .DIAMOND:
+					if only_material_remaining(current_cell^) == .NONE {
+						current_cell.available[.DIAMOND_SWORD] = false;
+						current_cell.available[.DIAMOND_PICKAXE] = false;
+						current_cell.available[.DIAMOND_CHESTPLATE] = false;
+					}
+				
+				
+				case .SWORD:
+					if only_tool_remaining(current_cell^) == .NONE {
+						current_cell.available[.IRON_SWORD] = false;
+						current_cell.available[.GOLD_SWORD] = false;
+						current_cell.available[.DIAMOND_SWORD] = false;
+					}
+
+				case .PICKAXE:
+					if only_tool_remaining(current_cell^) == .NONE {
+						current_cell.available[.IRON_PICKAXE] = false;
+						current_cell.available[.GOLD_PICKAXE] = false;
+						current_cell.available[.DIAMOND_PICKAXE] = false;
+					}
+				case .CHESTPLATE:
+					if only_tool_remaining(current_cell^) == .NONE {
+						current_cell.available[.IRON_CHESTPLATE] = false;
+						current_cell.available[.GOLD_CHESTPLATE] = false;
+						current_cell.available[.DIAMOND_CHESTPLATE] = false;
+					}
+			}
+		}
+	}
+}
+
+check_triplets :: proc(cells: ^[3][3]Cell_State) {
+	remaining: [CLUE_TYPE]int;
+
+	for type in CLUE_TYPE {
+		remaining[type] = 3;
+	}
+
+	for i in 0..<3 {
+		for j in 0..<3 {
+			current_cell := cells[j][i];
+
+			remaining_item := only_item_remaining(current_cell)
+
+			switch remaining_item {
+				case nil:
+					// do nothing
+				case .IRON_SWORD:
+					remaining[.IRON] -= 1;
+					remaining[.SWORD] -= 1;
+
+				case .IRON_PICKAXE:
+					remaining[.IRON] -= 1;
+					remaining[.PICKAXE] -= 1;
+
+				case .IRON_CHESTPLATE:
+					remaining[.IRON] -= 1;
+					remaining[.CHESTPLATE] -= 1;
+				
+				case .GOLD_SWORD:
+					remaining[.GOLD] -= 1;
+					remaining[.SWORD] -= 1;
+
+				case .GOLD_PICKAXE:
+					remaining[.GOLD] -= 1;
+					remaining[.PICKAXE] -= 1;
+
+				case .GOLD_CHESTPLATE:
+					remaining[.GOLD] -= 1;
+					remaining[.CHESTPLATE] -= 1;
+				
+				case .DIAMOND_SWORD:
+					remaining[.DIAMOND] -= 1;
+					remaining[.SWORD] -= 1;
+
+				case .DIAMOND_PICKAXE:
+					remaining[.DIAMOND] -= 1;
+					remaining[.PICKAXE] -= 1;
+
+				case .DIAMOND_CHESTPLATE:
+					remaining[.DIAMOND] -= 1;
+					remaining[.CHESTPLATE] -= 1;
+			}	
+
+			remaining_material := only_material_remaining(current_cell);
+
+			#partial switch remaining_material {
+				case .IRON:
+					remaining[.IRON] -= 1;
+				case .GOLD:
+					remaining[.GOLD] -= 1;
+				case .DIAMOND:
+					remaining[.DIAMOND] -= 1;
+			}
+			
+			remaining_tool := only_tool_remaining(current_cell);
+
+			#partial switch remaining_tool {
+				case .SWORD:
+					remaining[.SWORD] -= 1;
+				case .PICKAXE:
+					remaining[.PICKAXE] -= 1;
+				case .CHESTPLATE:
+					remaining[.CHESTPLATE] -= 1;
+			}
+		}
+	}
+
+	// possible_cells := make([CLUE_TYPE][dynamic][2]int);
+
+	for type in CLUE_TYPE {
+		if remaining[type] == 0 {
+			// fmt.println("All found of: ", type);
+			disable_ambiguous_cells(cells, type);
+		} else if remaining[type] == 1 {
+			// get_possible_cells()
+			// append(&possible_cells[type], )
+			fmt.println("One remaining of: ", type);
 		}
 	}
 }
@@ -493,6 +731,9 @@ solve_board :: proc(board: ^Board_State, try_combinations: bool = false) -> Boar
 				index += 1;
 			}
 		}
+
+		// print_solution(board^)
+
 		
 		// remove_range(&board.clues, 0, index);
 		
@@ -506,7 +747,7 @@ solve_board :: proc(board: ^Board_State, try_combinations: bool = false) -> Boar
 		init_board_state(board, false);
 		return combine_clues(board.clues[:]);
 	}
-	return {};
+	return board^;
 }
 
 is_solved :: proc(board: Board_State) -> bool{
@@ -545,9 +786,9 @@ print_solution :: proc(board: Board_State) {
 main :: proc() {
 	// invalid_problem();
 
-	// problem36();
-	problem17();
-	// problem19();
+	// problem34();
+	// problem17();
+	problem19();
 	// problem1();
 	// problem2();
 	// problem3();
@@ -555,7 +796,7 @@ main :: proc() {
 	// problem7();
 	// problem20();
 	// problem34_m();
-	// problem34_m2();
+	// problem17_m();
 
 	// asd: []int = {2, 6, 4};
 	// counter: []int = make([]int, len(asd));

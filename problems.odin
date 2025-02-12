@@ -754,7 +754,7 @@ problem19 :: proc() {
 	)
 
 
-	solved_board := solve_board(&board, true);
+	solved_board := solve_board(&board);
 	// solved_board := combine_clues(board.clues[:]);
 
 
@@ -804,64 +804,121 @@ problem15 :: proc() {
 			size = {3, 2},
 		}
 	)
-	solved_board := solve_board(&board, true);
+	solved_board := solve_board(&board);
 	print_solution(solved_board);
 }
 
 problem17 :: proc() {
 	board: Board_State;
 	init_board_state(&board);
-append(&board.clues, 
-	Clue{
-		item = {
-			{.GOLD, .GOLD, .NONE},
-			{.NONE, .GOLD, .NONE},
-			{.NONE, .NONE, .NONE},
-		},
-		size = {2, 2},
-	}
-)
-append(&board.clues, 
-	Clue{
-		item = {
-			{.EMPTY, .NONE, .NONE},
-			{.NONE, .CHESTPLATE, .NONE},
-			{.NONE, .SWORD, .NONE},
-		},
-		size = {2, 3},
-	}
-)
-append(&board.clues, 
-	Clue{
-		item = {
-			{.PICKAXE, .NONE, .NONE},
-			{.PICKAXE, .NONE, .NONE},
-			{.PICKAXE, .NONE, .NONE},
-		},
-		size = {1, 3},
-	}
-)
-append(&board.clues, 
-	Clue{
-		item = {
-			{.NONE, .EMPTY, .NONE},
-			{.CHESTPLATE, .NONE, .NONE},
-			{.IRON, .NONE, .NONE},
-		},
-		size = {2, 3},
-	}
-)
-append(&board.clues, 
-	Clue{
-		item = {
-			{.IRON, .IRON, .NONE},
-			{.IRON, .NONE, .NONE},
-			{.NONE, .NONE, .NONE},
-		},
-		size = {2, 2},
-	}
-)
-	solved_board := solve_board(&board, true);
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.GOLD, .GOLD, .NONE},
+				{.NONE, .GOLD, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.EMPTY, .NONE, .NONE},
+				{.NONE, .CHESTPLATE, .NONE},
+				{.NONE, .SWORD, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.PICKAXE, .NONE, .NONE},
+				{.PICKAXE, .NONE, .NONE},
+				{.PICKAXE, .NONE, .NONE},
+			},
+			size = {1, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .EMPTY, .NONE},
+				{.CHESTPLATE, .NONE, .NONE},
+				{.IRON, .NONE, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.IRON, .IRON, .NONE},
+				{.IRON, .NONE, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	solved_board := solve_board(&board);
+	print_solution(solved_board);
+}
+
+problem17_m :: proc() {
+	board: Board_State;
+	init_board_state(&board);
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .GOLD, .GOLD},
+				{.NONE, .NONE, .GOLD},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {3, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.EMPTY, .NONE, .NONE},
+				{.NONE, .CHESTPLATE, .NONE},
+				{.NONE, .SWORD, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.PICKAXE, .NONE, .NONE},
+				{.PICKAXE, .NONE, .NONE},
+				{.PICKAXE, .NONE, .NONE},
+			},
+			size = {1, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.NONE, .EMPTY, .NONE},
+				{.CHESTPLATE, .NONE, .NONE},
+				{.IRON, .NONE, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.IRON, .IRON, .NONE},
+				{.IRON, .NONE, .NONE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {2, 2},
+		}
+	)
+	solved_board := solve_board(&board);
 	print_solution(solved_board);
 }
 
