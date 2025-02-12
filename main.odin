@@ -3,7 +3,7 @@ package main
 import "core:fmt"
 import "core:slice"
 
-MAX_ITERATIONS :: 5;
+MAX_ITERATIONS :: 20;
 
 ITEM_TYPE :: enum {
 	IRON_SWORD,
@@ -1075,10 +1075,11 @@ main :: proc() {
 	// problem17();
 	// problem19_m2();
 	// problem19();
-	// problem20();
+
+	problem39();
 	// problem21();
 	// problem22();
-	problem23();
+	// problem23();
 	// problem25();
 	// problem34();
 	// problem1();

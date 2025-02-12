@@ -754,7 +754,7 @@ problem19 :: proc() {
 	)
 
 
-	solved_board := solve_board(&board);
+	solved_board := solve_board(&board, true);
 	// solved_board := combine_clues(board.clues[:]);
 
 
@@ -1002,6 +1002,34 @@ problem17_m :: proc() {
 			size = {2, 2},
 		}
 	)
+	solved_board := solve_board(&board);
+	print_solution(solved_board);
+}
+
+problem16 :: proc() {
+	board: Board_State;
+	init_board_state(&board);
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.DIAMOND, .SWORD, .NONE},
+				{.PICKAXE, .GOLD, .NONE},
+				{.GOLD, .SWORD, .NONE},
+			},
+			size = {2, 3},
+		}
+	)
+	append(&board.clues, 
+		Clue{
+			item = {
+				{.IRON, .PICKAXE, .IRON},
+				{.PICKAXE, .GOLD, .CHESTPLATE},
+				{.NONE, .NONE, .NONE},
+			},
+			size = {3, 2},
+		}
+	)
+
 	solved_board := solve_board(&board);
 	print_solution(solved_board);
 }
@@ -1351,6 +1379,107 @@ problem25 :: proc() {
 			item_count = 1,
 		}
 	)
+	solved_board := solve_board(&board);
+	print_solution(solved_board);
+}
+
+problem39 :: proc() {
+	board: Board_State;
+	init_board_state(&board);
+append(&board.clues, 
+	Clue{
+		item = {
+			{.DIAMOND_PICKAXE, .NONE, .NONE},
+			{.NONE, .GOLD_CHESTPLATE, .NONE},
+			{.NONE, .NONE, .NONE},
+		},
+		size = {2, 2},
+	}
+)
+append(&board.clues, 
+	Clue{
+		item = {
+			{.GOLD_SWORD, .NONE, .NONE},
+			{.NONE, .EMPTY, .NONE},
+			{.NONE, .EMPTY, .NONE},
+		},
+		size = {2, 3},
+	}
+)
+append(&board.clues, 
+	Clue{
+		item = {
+			{.EMPTY, .NONE, .NONE},
+			{.GOLD_PICKAXE, .NONE, .NONE},
+			{.EMPTY, .NONE, .NONE},
+		},
+		size = {1, 3},
+	}
+)
+append(&board.clues, 
+	Clue{
+		item = {
+			{.NONE, .CHESTPLATE, .NONE},
+			{.CHESTPLATE, .NONE, .NONE},
+			{.NONE, .NONE, .NONE},
+		},
+		size = {2, 2},
+	}
+)
+append(&board.clues, 
+	Clue{
+		item = {
+			{.IRON_PICKAXE, .NONE, .NONE},
+			{.NONE, .EMPTY, .NONE},
+			{.NONE, .NONE, .NONE},
+		},
+		size = {2, 2},
+	}
+)
+append(&board.clues, 
+	Clue{
+		item = {
+			{.GOLD_SWORD, .CHESTPLATE, .NONE},
+			{.IRON, .NONE, .NONE},
+			{.NONE, .NONE, .NONE},
+		},
+		size = {2, 2},
+	}
+)
+
+append(&board.negative_clues, 
+	Negative_Clue{
+		item = {
+			{.EMPTY, .PICKAXE, .EMPTY},
+			{.NONE, .NONE, .NONE},
+			{.NONE, .NONE, .NONE},
+		},
+		size = {3, 1},
+		item_count = 1,
+	}
+)
+append(&board.negative_clues, 
+	Negative_Clue{
+		item = {
+			{.NONE, .EMPTY, .NONE},
+			{.IRON, .EMPTY, .EMPTY},
+			{.NONE, .NONE, .NONE},
+		},
+		size = {3, 2},
+		item_count = 1,
+	}
+)
+append(&board.negative_clues, 
+	Negative_Clue{
+		item = {
+			{.GOLD, .EMPTY, .EMPTY},
+			{.NONE, .NONE, .NONE},
+			{.NONE, .NONE, .NONE},
+		},
+		size = {3, 1},
+		item_count = 1,
+	}
+)
 	solved_board := solve_board(&board);
 	print_solution(solved_board);
 }
