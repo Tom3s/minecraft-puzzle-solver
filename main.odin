@@ -1078,8 +1078,8 @@ main :: proc() {
 	// problem20();
 	// problem21();
 	// problem22();
-	// problem23();
-	problem25();
+	problem23();
+	// problem25();
 	// problem34();
 	// problem1();
 	// problem2();
