@@ -73,9 +73,36 @@ compare_clues :: proc(a, b: Clue) -> slice.Ordering{
 
 }
 
+compare_negative_clues :: proc(a, b: Negative_Clue) -> slice.Ordering{
+	switch delta := a.item_count - b.item_count; {
+		case delta > 0: return slice.Ordering.Greater
+		case delta < 0: return slice.Ordering.Less
+	}
+
+	max_a := max(a.size.x, a.size.y);
+	max_b := max(b.size.x, b.size.y);
+
+	switch delta := max_a - max_b; {
+		case delta < 0: return slice.Ordering.Greater
+		case delta > 0: return slice.Ordering.Less
+	}
+
+	min_a := min(a.size.x, a.size.y);
+	min_b := min(b.size.x, b.size.y);
+
+	switch delta := min_a - min_b; {
+		case delta < 0: return slice.Ordering.Greater
+		case delta > 0: return slice.Ordering.Less
+	}
+
+	return slice.Ordering.Equal;
+
+}
+
 Negative_Clue :: struct {
 	item: [3][3]CLUE_TYPE,
 	size: [2]int,
+	item_count: int,
 }
 
 Board_State :: struct {
@@ -559,6 +586,18 @@ get_offsets_array :: proc(clue: Clue) -> [dynamic][2]int {
 	return offsets;
 }
 
+get_offsets_array_negative :: proc(clue: Negative_Clue) -> [dynamic][2]int {
+	offsets := make([dynamic][2]int);
+
+	for x in 0..<3 - clue.size.x + 1 {
+		for y in 0..<3 - clue.size.y + 1 {
+			append(&offsets, [2]int{x, y});
+		}
+	}
+
+	return offsets;
+}
+
 disable_unsatisfiable_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue, offset: [2]int) {
 	items_to_disable := make([dynamic]ITEM_TYPE);
 
@@ -748,8 +787,7 @@ illegal_state :: proc(board: Board_State) -> bool {
 
 sort_clues :: proc(board: ^Board_State) {
 	slice.sort_by_cmp(board.clues[:], compare_clues);
-
-
+	slice.sort_by_cmp(board.negative_clues[:], compare_negative_clues);
 }
 
 combine_clues :: proc(clues: []Clue) -> Board_State {
@@ -845,8 +883,65 @@ combine_clues :: proc(clues: []Clue) -> Board_State {
 	return {};
 }
 
+disable_unallowed_items :: proc(cells: ^[3][3]Cell_State, clue: Negative_Clue) {
+	offsets := get_offsets_array_negative(clue);
+	for offset in offsets {
+		for i in 0..<clue.size.x {
+			for j in 0..<clue.size.y{
+				current_clue := clue.item[j][i];
+				current_cell := &cells[j + offset.y][i + offset.x];
+				
+				#partial switch current_clue {
+					case .IRON_SWORD ..= .DIAMOND_CHESTPLATE:
+						current_cell.available[cast(ITEM_TYPE) current_clue] = false;
+					
+					case .IRON:
+						current_cell.available[.IRON_SWORD] = false;
+						current_cell.available[.IRON_PICKAXE] = false;
+						current_cell.available[.IRON_CHESTPLATE] = false;
+					
+					case .GOLD:
+						current_cell.available[.GOLD_SWORD] = false;
+						current_cell.available[.GOLD_PICKAXE] = false;
+						current_cell.available[.GOLD_CHESTPLATE] = false;
+					
+					case .DIAMOND:
+						current_cell.available[.DIAMOND_SWORD] = false;
+						current_cell.available[.DIAMOND_PICKAXE] = false;
+						current_cell.available[.DIAMOND_CHESTPLATE] = false;
+					
+					case .SWORD:
+						current_cell.available[.IRON_SWORD] = false;
+						current_cell.available[.GOLD_SWORD] = false;
+						current_cell.available[.DIAMOND_SWORD] = false;
+					
+					case .PICKAXE:
+						current_cell.available[.IRON_PICKAXE] = false;
+						current_cell.available[.GOLD_PICKAXE] = false;
+						current_cell.available[.DIAMOND_PICKAXE] = false;
+					
+					case .CHESTPLATE:
+						current_cell.available[.IRON_CHESTPLATE] = false;
+						current_cell.available[.GOLD_CHESTPLATE] = false;
+						current_cell.available[.DIAMOND_CHESTPLATE] = false;
+				}
+
+				check_final_item(cells, {i, j});
+
+				check_triplets(cells);
+			}
+		}
+	}
+}
+
 solve_board :: proc(board: ^Board_State, try_combinations: bool = false) -> Board_State {
 	sort_clues(board);
+
+	for clue in board.negative_clues {
+		if clue.item_count == 1 {
+			disable_unallowed_items(&board.cells, clue);
+		}
+	}
 
 	for i in 0..<len(board.clues) {
 		if board.clues[i].size != {3, 3} {
@@ -865,6 +960,7 @@ solve_board :: proc(board: ^Board_State, try_combinations: bool = false) -> Boar
 				// copy_slice(aux_board.clues[:], board.clues[:]);
 				// copy(aux_board.clues[:], board.clues[:])
 				append_elems(&aux_board.clues, ..board.clues[:]);
+				append_elems(&aux_board.negative_clues, ..board.negative_clues[:]);
 	
 				// fmt.println(i, offset);
 				
@@ -978,8 +1074,12 @@ main :: proc() {
 
 	// problem17();
 	// problem19_m2();
-	problem19();
+	// problem19();
 	// problem20();
+	// problem21();
+	// problem22();
+	// problem23();
+	problem25();
 	// problem34();
 	// problem1();
 	// problem2();
