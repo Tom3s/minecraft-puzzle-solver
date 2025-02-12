@@ -533,8 +533,8 @@ check_triplets :: proc(cells: ^[3][3]Cell_State) {
 		} 
 		ambi_cells := get_ambiguous_cells(cells, type);
 
-		if len(ambi_cells) == remaining[type] {
-			fmt.println("Ambiguous cells: ", ambi_cells);
+		if 0 < len(ambi_cells) && len(ambi_cells) <= 3 {
+			// fmt.println("Ambiguous cells: ", ambi_cells, " for type ", type);
 		}
 		// else if remaining[type] == 1 {
 		// 	ambi_cells := get_ambiguous_cells(cells, type);
@@ -585,7 +585,7 @@ disable_unsatisfiable_clue :: proc(cells: ^[3][3]Cell_State, clue: Clue, offset:
 			for item in items_to_disable {
 				if cast(ITEM_TYPE) current_clue == item do continue;
 
-				fmt.println("Disabling ", item, " on ", i, j);
+				// fmt.println("Disabling ", item, " on ", i, j);
 				current_cell.available[item] = false;
 			}
 		}
@@ -866,7 +866,7 @@ solve_board :: proc(board: ^Board_State, try_combinations: bool = false) -> Boar
 				// copy(aux_board.clues[:], board.clues[:])
 				append_elems(&aux_board.clues, ..board.clues[:]);
 	
-				fmt.println(i, offset);
+				// fmt.println(i, offset);
 				
 	
 				
@@ -879,8 +879,8 @@ solve_board :: proc(board: ^Board_State, try_combinations: bool = false) -> Boar
 				if is_solved(aux_board) {
 					return aux_board;
 				} else {
-					fmt.println("\n\n");
-					print_solution(aux_board);
+					// fmt.println("\n\n");
+					// print_solution(aux_board);
 					destroy_board_state(&aux_board);
 				}
 			}
@@ -978,7 +978,8 @@ main :: proc() {
 
 	// problem17();
 	// problem19_m2();
-	problem20();
+	problem19();
+	// problem20();
 	// problem34();
 	// problem1();
 	// problem2();
